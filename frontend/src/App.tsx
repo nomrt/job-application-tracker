@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ApplicationsTable from "@/components/ApplicationsTable";
 import NewApplicationDialog from "@/components/NewApplicationDialog";
+import ExportImportBar from "@/components/ExportImportBar";
+import UpcomingFollowups from "@/components/UpcomingFollowups";
 
 export default function App() {
   const [open, setOpen] = useState(false);
@@ -12,7 +14,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"Saved"|"Applied"|"Interview"|"Offer"|"Rejected"|"Ghosted"|"All">("All");
   const [priority, setPriority] = useState<"Low"|"Medium"|"High"|"All">("All");
-  const [ordering, setOrdering] = useState("-applied_date"); // newest applied first
+  const [ordering, setOrdering] = useState("-applied_date");
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -20,31 +22,19 @@ export default function App() {
         <div className="mx-auto max-w-6xl px-4 py-3 flex flex-wrap items-center gap-2 justify-between">
           <h1 className="text-xl font-semibold">Job Application Tracker</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <Input
-              placeholder="Search…"
-              className="w-64"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-
+            <Input placeholder="Search…" className="w-64" value={search} onChange={(e) => setSearch(e.target.value)} />
             <Select value={status} onValueChange={(v) => setStatus(v as any)}>
               <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                {["All","Saved","Applied","Interview","Offer","Rejected","Ghosted"].map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
+                {["All","Saved","Applied","Interview","Offer","Rejected","Ghosted"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
-
             <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
               <SelectTrigger className="w-32"><SelectValue placeholder="Priority" /></SelectTrigger>
               <SelectContent>
-                {["All","Low","Medium","High"].map(p => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
+                {["All","Low","Medium","High"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
-
             <Select value={ordering} onValueChange={setOrdering}>
               <SelectTrigger className="w-44"><SelectValue placeholder="Sort" /></SelectTrigger>
               <SelectContent>
@@ -54,13 +44,13 @@ export default function App() {
                 <SelectItem value="-company">Company (Z→A)</SelectItem>
               </SelectContent>
             </Select>
-
             <Button onClick={() => setOpen(true)}>New</Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl p-4">
+      <main className="mx-auto max-w-6xl p-4 space-y-4">
+        <ExportImportBar onImported={() => setReloadTick(x => x + 1)} />
         <ApplicationsTable
           search={search || undefined}
           status={status === "All" ? undefined : status}
@@ -68,12 +58,16 @@ export default function App() {
           ordering={ordering}
           reloadTick={reloadTick}
         />
+        <section className="rounded-2xl bg-white p-4 shadow">
+          <h2 className="text-lg font-semibold mb-2">Upcoming Follow-ups</h2>
+          <UpcomingFollowups refresh={reloadTick} />
+        </section>
       </main>
 
       <NewApplicationDialog
         open={open}
         onOpenChange={setOpen}
-        onCreated={() => { setOpen(false); setReloadTick((x) => x + 1); }}
+        onCreated={() => { setOpen(false); setReloadTick(x => x + 1); }}
       />
     </div>
   );
