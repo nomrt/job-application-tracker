@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { JobApplication } from "@/types";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPatch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCaption, TableCell,
   TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const STATUSES = ["Saved","Applied","Interview","Offer","Rejected","Ghosted"] as const;
 
 const STATUS_COLOR: Record<JobApplication["status"], string> = {
   Saved: "bg-slate-100 text-slate-700",
@@ -20,32 +23,55 @@ function StatusPill({ value }: { value: JobApplication["status"] }) {
   return <Badge className={`rounded-full ${STATUS_COLOR[value]}`}>{value}</Badge>;
 }
 
-export default function ApplicationsTable({ reloadTick = 0 }: { reloadTick?: number }) {
+type Props = {
+  search?: string;
+  status?: JobApplication["status"];
+  priority?: JobApplication["priority"];
+  ordering?: string;          // e.g. "-applied_date"
+  reloadTick?: number;        // bump to force refetch
+};
+
+export default function ApplicationsTable({ search, status, priority, ordering, reloadTick = 0 }: Props) {
   const [data, setData] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        const rows = await apiGet<JobApplication[]>("/applications/");
-        setData(rows);
-      } catch (e: any) {
-        setErr(e?.message ?? "Failed to load");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [reloadTick]);
+  async function fetchData() {
+    try {
+      setLoading(true);
+      setErr(null);
+      const rows = await apiGet<JobApplication[]>("/applications/", {
+        search,
+        status,
+        priority,
+        ordering,
+      });
+      setData(rows);
+    } catch (e: any) {
+      setErr(e?.message ?? "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  if (loading) {
-    return <div className="p-6 text-sm text-gray-600">Loading applications…</div>;
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status, priority, ordering, reloadTick]);
+
+  async function onChangeStatus(id: string, next: JobApplication["status"]) {
+    // optimistic UI
+    setData(prev => prev.map(a => (a.id === id ? { ...a, status: next } : a)));
+    try {
+      await apiPatch<JobApplication>(`/applications/${id}/`, { status: next });
+    } catch {
+      // revert if server fails
+      await fetchData();
+    }
   }
-  if (err) {
-    return <div className="p-6 text-sm text-red-600">Error: {err}</div>;
-  }
+
+  if (loading) return <div className="p-6 text-sm text-gray-600">Loading applications…</div>;
+  if (err) return <div className="p-6 text-sm text-red-600">Error: {err}</div>;
 
   return (
     <Table>
@@ -64,9 +90,7 @@ export default function ApplicationsTable({ reloadTick = 0 }: { reloadTick?: num
       <TableBody>
         {data.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="text-gray-500">
-              No applications yet.
-            </TableCell>
+            <TableCell colSpan={7} className="text-gray-500">No applications yet.</TableCell>
           </TableRow>
         ) : (
           data.map((a) => (
@@ -75,22 +99,25 @@ export default function ApplicationsTable({ reloadTick = 0 }: { reloadTick?: num
                 <div className="font-medium">{a.company}</div>
                 <div className="text-xs text-gray-500">{a.location}</div>
                 {a.job_url ? (
-                  <a
-                    className="text-xs text-blue-700 hover:underline"
-                    href={a.job_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a className="text-xs text-blue-700 hover:underline" href={a.job_url} target="_blank" rel="noreferrer">
                     {a.job_url}
                   </a>
                 ) : null}
               </TableCell>
               <TableCell className="align-top">{a.role}</TableCell>
               <TableCell className="align-top">
-                <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
                   <StatusPill value={a.status} />
-                  {a.stage ? <div className="text-xs text-gray-500">{a.stage}</div> : null}
+                  <Select value={a.status} onValueChange={(v) => onChangeStatus(a.id, v as JobApplication["status"])}>
+                    <SelectTrigger className="h-8 w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
+                {a.stage ? <div className="text-xs text-gray-500 mt-1">{a.stage}</div> : null}
               </TableCell>
               <TableCell className="align-top">{a.priority}</TableCell>
               <TableCell className="align-top">{a.applied_date ?? ""}</TableCell>
