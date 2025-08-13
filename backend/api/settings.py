@@ -11,9 +11,18 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env(
+    DEBUG=(bool, True),
+    CORS_ALLOW_ALL_ORIGINS=(bool, True),
+)
+environ.Env.read_env(os.path.join(BASE_DIR, "..", ".env"))
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -127,12 +136,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-CORS_ALLOW_ALL_ORIGINS = True  # dev only
-
-CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
-
-
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "DEFAULT_FILTER_BACKENDS": [
@@ -141,5 +144,15 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
 }
-TIME_ZONE = "America/Chicago"
+
+
+SECRET_KEY = env("SECRET_KEY", default="dev-secret-change-me")
+DEBUG = env.bool("DEBUG", default=True)
+
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+
+CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=True)
+CSRF_TRUSTED_ORIGINS = [*env.list("CSRF_TRUSTED_ORIGINS", default=["http://127.0.0.1:5173", "http://localhost:5173"])]
+
+TIME_ZONE = env("TIME_ZONE", default="America/Chicago")
 USE_TZ = True
