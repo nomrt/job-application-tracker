@@ -79,12 +79,16 @@ export default function ApplicationsTable({
     try {
       setLoading(true);
       setErr(null);
-      const rows = await apiGet<JobApplication[]>("/applications/", {
+      const res = await apiGet<JobApplication[]>("/applications/", {
         search,
         status,
         priority,
         ordering,
+        page_size: 1000,
+
       });
+
+      const rows: JobApplication[] = Array.isArray(res) ? res : (res?.results ?? []);
       setData(rows);
     } catch (e: any) {
       setErr(e?.message ?? "Failed to load");
