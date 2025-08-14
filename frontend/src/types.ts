@@ -17,3 +17,10 @@ export type JobApplication = {
   created_at: string;              // ISO
   updated_at: string;              // ISO
 };
+
+export type Paginated<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};

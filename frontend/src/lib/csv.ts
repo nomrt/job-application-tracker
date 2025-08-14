@@ -6,8 +6,8 @@ const headers = [
 ] as const;
 
 export function toCsv(apps: JobApplication[]) {
-  const esc = (s: unknown) =>
-    `"${String(s ?? "").replaceAll(`"`, `""`)}"`;
+  // escape " as "" using a regex that works on older targets
+  const esc = (s: unknown) => `"${String(s ?? "").replace(/"/g, '""')}"`;
   const header = headers.join(",");
   const rows = apps.map(a =>
     headers.map(h => esc((a as any)[h] ?? "")).join(",")
@@ -15,7 +15,7 @@ export function toCsv(apps: JobApplication[]) {
   return [header, ...rows].join("\n");
 }
 
-// very simple CSV parser (supports quoted commas & quotes). Not bulletproof, good enough for our columns.
+// very simple CSV parser (handles quoted commas & quotes).
 export function parseCsv(text: string): Record<string, string>[] {
   const lines = text.trim().split(/\r?\n/);
   const hdr = lines.shift();
