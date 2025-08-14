@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -70,9 +71,11 @@ export default function EditApplicationDialog({ open, onOpenChange, item, onSave
         follow_up_date: form.follow_up_date || null,
       };
       await apiPatch(`/applications/${item.id}/`, body);
+      toast.success("Saved Changes");
       onSaved();
       onOpenChange(false);
     } catch (e: any) {
+      toast.error("Failed to save Changes");
       setErr(e?.message ?? "Failed to save");
     } finally {
       setSaving(false);

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -56,10 +57,12 @@ export default function NewApplicationDialog({ open, onOpenChange, onCreated }: 
         follow_up_date: form.follow_up_date || null,
       };
       const created = await apiPost<JobApplication>("/applications/", payload);
+      toast.success("Application Created")
       onCreated(created);
       // reset minimal fields
       setForm(prev => ({ ...prev, company: "", role: "" }));
     } catch (e: any) {
+      toast.error("Failed to create Apllication");
       setErr(e?.message ?? "Failed to create");
     } finally {
       setSubmitting(false);

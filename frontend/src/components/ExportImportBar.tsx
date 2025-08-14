@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { apiGet, apiPost } from "@/lib/api";
 import { toCsv, parseCsv } from "@/lib/csv";
 import type { JobApplication } from "@/types";
+import { toast } from "sonner";
+
 
 function dl(filename: string, text: string, type = "text/plain") {
   const blob = new Blob([text], { type: `${type};charset=utf-8` });
@@ -83,6 +85,8 @@ export default function ExportImportBar({ onImported }: Props) {
     setBusy(false);
     setMsg(`Imported: ${ok} ok, ${fail} failed`);
     onImported();
+    toast.success(`Import complete: ${ok} ok, ${fail} failed`);
+
   }
 
   return (

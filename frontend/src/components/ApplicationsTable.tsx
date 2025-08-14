@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { JobApplication } from "@/types";
 import { apiGet, apiPatch, apiDelete } from "@/lib/api";
+import { toast } from "sonner";
 
 import {
   Table,
@@ -75,21 +76,40 @@ export default function ApplicationsTable({
   const [editing, setEditing] = useState<JobApplication | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10); // keep in sync with DRF PAGE_SIZE
+  const [total, setTotal] = useState(0);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, status, priority, ordering]);
+
   async function fetchData() {
     try {
       setLoading(true);
       setErr(null);
-      const res = await apiGet<JobApplication[]>("/applications/", {
+
+      // Accept both shapes:
+      // - Array (if pagination disabled)
+      // - Object { count, results } (DRF pagination enabled)
+      const res = await apiGet<any>("/applications/", {
         search,
         status,
         priority,
         ordering,
-        page_size: 1000,
-
+        page,
+        page_size: pageSize,
       });
 
-      const rows: JobApplication[] = Array.isArray(res) ? res : (res?.results ?? []);
-      setData(rows);
+      if (Array.isArray(res)) {
+        setData(res);
+        setTotal(res.length);
+      } else {
+        setData(res?.results ?? []);
+        setTotal(res?.count ?? 0);
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Failed to load");
     } finally {
@@ -100,7 +120,7 @@ export default function ApplicationsTable({
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, status, priority, ordering, reloadTick]);
+  }, [search, status, priority, ordering, reloadTick, page]);
 
   async function onChangeStatus(id: string, next: JobApplication["status"]) {
     // optimistic update
@@ -108,8 +128,8 @@ export default function ApplicationsTable({
     try {
       await apiPatch(`/applications/${id}/`, { status: next });
     } catch {
-      // revert on failure
-      await fetchData();
+      toast.error(" Status update Failed");
+      await fetchData(); // revert on failure
     }
   }
 
@@ -123,7 +143,7 @@ export default function ApplicationsTable({
   return (
     <>
       <Table>
-        <TableCaption className="text-left">Your applications ({data.length})</TableCaption>
+        <TableCaption className="text-left">Your applications ({total || data.length})</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>Company</TableHead>
@@ -214,6 +234,31 @@ export default function ApplicationsTable({
         </TableBody>
       </Table>
 
+      {/* Pagination controls */}
+      <div className="mt-3 flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          Page {page} • Showing {data.length} of {total || data.length}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={data.length < pageSize || page * pageSize >= total}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
       {/* Edit dialog */}
       <EditApplicationDialog
         open={!!editing}
@@ -239,7 +284,9 @@ export default function ApplicationsTable({
                 setData((prev) => prev.filter((x) => x.id !== id));
                 try {
                   await apiDelete(`/applications/${id}/`);
+                  toast.success("Deleted");
                 } catch {
+                  toast.error("Delete failed");
                   await fetchData();
                 }
               }}
