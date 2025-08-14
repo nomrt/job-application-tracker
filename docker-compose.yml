@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - backend/.env
+    environment:
+      - DB_PATH=/data/db.sqlite3
+    volumes:
+      - backend_data:/data
+    expose:
+      - "8000"
+    # To expose API directly on localhost:8000, uncomment:
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE: /api
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  backend_data:
